@@ -18,7 +18,7 @@
 #define PACKET_SIZE             (128)
 #define PACKET_1K_SIZE          (1024)
 #define PACKET_TIMEOUT          (3000000)   //超时时间
-#define MAX_TIMEOUT_NUM         (40)       //最大超时次数
+#define MAX_TIMEOUT_NUM         (23)       //最大超时次数
 
 
 #define INITIAL
@@ -277,7 +277,8 @@ static void getbuf_unblock(char* buf, int len)
                 time_out_count++;
                 if(time_out_count >= MAX_TIMEOUT_NUM)
                 {
-                    printf("time out !\n");
+                    printf("Timed Out !\n");
+                    end_receive = TRUE;
                     return;
                 }
                 break;
@@ -367,7 +368,7 @@ static unsigned long str16_to_u32(const char* str)
     }
     else
     {
-        printf("wrong number!\n");
+        printf("Wrong input number!\n");
         return -1;
     }
 
@@ -378,7 +379,7 @@ static unsigned long str16_to_u32(const char* str)
     }
     else
     {
-        printf("wrong number!\n");
+        printf("Wrong input number!\n");
         return -1;
     }
 
@@ -653,8 +654,13 @@ static int do_ymodem(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
     if(argv[1] != NULL)
         sdram_address = (unsigned int)str16_to_u32(argv[1]);
     psdram_address = (char *)sdram_address;
-    printf("sdram_address = %x\n", sdram_address);
-    printf("baudrate = %u\n", baudrate);
+    printf ("## Ready for binary (ymodem) download "
+        "to 0x%08lX at %d bps...\n",
+        sdram_address,
+        baudrate);
+
+    // printf("sdram_address = %x\n", sdram_address);
+    // printf("baudrate = %u\n", baudrate);
 
     while(1)
     {
@@ -678,7 +684,9 @@ static int do_ymodem(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 U_BOOT_CMD(
     ymodem,    5,  0,  do_ymodem,
-    "ymodem, ---just for test\n",
-    "ymodem, for long help.................................\n"
+    "load binary file over serial line (ymodem mode)",
+	"[ off ] [ 115200 ]\n"
+	"    - load binary file over serial line"
+	" with offset 'off' and baudrate '115200'"
 );
 
