@@ -125,8 +125,10 @@ uint8 receive_status = YMODEM_RX_IDLE;
 unsigned int packet_size = 0;
 unsigned int seek = 0;
 unsigned int packet_total_length = 0;
+char file_name[50] = {0};
 int file_name_len = 0;
 unsigned long file_size = 0;
+
 int start_receive = TRUE;
 int end_receive = FALSE;
 unsigned int time_out = FALSE;
@@ -320,13 +322,9 @@ static int packet_if_empty( char *buf, int len)
     int offset=0;
     while( ((buf[offset]==0x20)||(buf[offset]==0x30) || (buf[offset]==0x00)) &&  ++offset<len); //CRT结尾并不都是0x1a，注意
     if( offset == len )
-    {
-        printf("0 packet!\n");
         return TRUE;
-        printf("not 0 packet!\n");
-    }
     else
-    return FALSE;
+        return FALSE;         //printf("not 0 packet!\n");
 }
 
 
@@ -429,6 +427,14 @@ static int pl011_strlen(char *str)
     return len;
 }
 
+
+static int pl011_strcpy(char *src, char *des)
+{
+    if((src == NULL) || (des == NULL))
+        return -1;
+    while(*des++ = *src++);
+}
+
 void packet_processing(char *buf){
     int i = 0;
     unsigned short crc1 = 0;
@@ -457,19 +463,19 @@ void packet_processing(char *buf){
                     }
                     else                                        //如果不是空包，则认为是第一个包（包含文件名和文件大小）
                     {
-                        printf("first packet!\n");
+                        //printf("first packet!\n");
                         pl011_putc_block( ACK );
                         seek = 0;                               //初始化变量，用于接收新文件
                         pl011_putc_block( 'C' );
-                        // //file_open(buf+3);                     //解析文件名
+                        pl011_strcpy(buf+3,file_name);                    //解析文件名
                         file_name_len = pl011_strlen(buf+3);
                         file_size = (unsigned int)str10_to_u32( buf+3+file_name_len+1 ); //解析文件长度
-                        if(file_size < 1024)
-                            printf("file_size = %dB\n", (int)file_size);
-                        else if(file_size/1024 < 1024)
-                            printf("file_size = %.1fKB\n", (float)file_size/1024);
-                        else
-                            printf("file_size = %.1fMB\n", (float)file_size/1024/1024);
+                        // if(file_size < 1024)
+                        //     printf("file_size = %dB\n", (int)file_size);
+                        // else if(file_size/1024 < 1024)
+                        //     printf("file_size = %.1fKB\n", (float)file_size/1024);
+                        // else
+                        //     printf("file_size = %.1fMB\n", (float)file_size/1024/1024);
                         //printf("file_name_len = %d\t file_size = %d", file_name_len, (int)file_size);
                         receive_status = YMODEM_RX_ACK;
                     }
@@ -518,7 +524,7 @@ void packet_processing(char *buf){
 
                 case EOT:  //指令包
                     pl011_putc_block( NAK );
-                    printf("YMODEM_RX_ACK: send NAK!\n" );
+                    //printf("YMODEM_RX_ACK: send NAK!\n" );
                     receive_status = YMODEM_RX_EOT;
                     break;
                 case CAN:
@@ -555,7 +561,7 @@ void packet_processing(char *buf){
 
 receive_exit:
         case YMODEM_RX_EXIT:                                    //在YMODEM_RX_IDLE状态下收到全0数据包
-            printf("receive_exit: YMODEM_RX_EXIT\n");
+            //printf("receive_exit: YMODEM_RX_EXIT\n");
             receive_status = YMODEM_RX_IDLE;
             end_receive = TRUE;
             return;
@@ -644,28 +650,28 @@ static int do_ymodem(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
     unsigned int baudrate = 115200;
     data_init();
 
-
-
     if(argv[1] != NULL)
         sdram_address = (unsigned int)str16_to_u32(argv[1]);
     psdram_address = (char *)sdram_address;
     printf("sdram_address = %x\n", sdram_address);
-
-    if(argv[2] != NULL)
-        baudrate = (unsigned int)str10_to_u32(argv[2]);
     printf("baudrate = %u\n", baudrate);
-    //uart_set_baudrate(baudrate);
 
-    //udelay(delay * 1000000);
-    printf("start:\n");
     while(1)
     {
         packet_processing(buf);
         if(end_receive == TRUE)
+        {
+            printf("\n\n");
+            printf("## File Name = %s\n", file_name);
+            if(file_size < 1024)
+                printf("## Total Size = %dB\n", (int)file_size);
+            else
+                printf("## Total Size = %dKB\n", file_size/1024);
             break;
+        }
         packet_reception(buf);
     }
-    //uart_set_baudrate(115200);
+
     return 0;
 }
 
