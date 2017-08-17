@@ -11,7 +11,7 @@
 #define PACKET_SIZE             (128)
 #define PACKET_1K_SIZE          (1024)
 #define PACKET_TIMEOUT          (3000000)   //超时时间
-#define MAX_TIMEOUT_NUM         (23)       //最大超时次数
+#define MAX_TIMEOUT_NUM         (15)       //最大超时次数
 
 #define YMODEM_RX_IDLE          0
 #define YMODEM_RX_ACK           1
@@ -200,7 +200,7 @@ char * psdram_address = NULL;
  }
 
 
- static int pl011_strcpy(char *src, char *des)
+ static int pl011_strcpy(const char *src, char *des)
  {
      if((src == NULL) || (des == NULL))
          return -1;
@@ -257,6 +257,18 @@ static void pl011_putc_block (char c)
 	   ;
 	/* Send the character */
 	*p_uart_pl011_dr = c;
+}
+
+
+static void pl011_puts_block (const char *s)
+{
+	char *str = s;
+	while((str!= NULL) && (*str != '\0') )
+	{
+		pl011_putc_block(*str);
+		str++;
+	}
+
 }
 
 
@@ -338,7 +350,7 @@ static void getbuf_unblock(char* buf, int len)
 }
 
 
-static int packet_check(char *buf, int len)
+static int packet_check(const char *buf, int len)
 {
     char ch = buf[0];
     //指令包
@@ -364,7 +376,7 @@ static int packet_check(char *buf, int len)
 }
 
 
-static int packet_if_empty( char *buf, int len)
+static int packet_if_empty(const char *buf, int len)
 {
     int offset=0;
     while( ((buf[offset]==0x20)||(buf[offset]==0x30) || (buf[offset]==0x00)) &&  ++offset<len); //CRT结尾并不都是0x1a，注意
@@ -428,6 +440,7 @@ static void packet_processing(char *buf){
                     {
                         //printf("first packet!\n");
                         pl011_putc_block( ACK );
+						//printf("first packet!\n");
                         seek = 0;                               //初始化变量，用于接收新文件
                         pl011_putc_block( 'C' );
 
@@ -436,6 +449,7 @@ static void packet_processing(char *buf){
                         file_size = (unsigned int)str10_to_u32( buf+3+file_name_len+1 ); //解析文件长度
 
                         receive_status = YMODEM_RX_ACK;
+
                     }
                     break;
 
@@ -538,6 +552,12 @@ static void packet_reception(char * buf)
     {
         return;
     }
+
+	if(buf[0] == 3)  // ctrl + c 结束传输
+	{
+		end_receive = TRUE;
+	}
+
     switch (buf[0])
     {
         case SOH:
@@ -554,7 +574,7 @@ static void packet_reception(char * buf)
             break;
 
         default:
-            break;
+            return;   //return ymodem起来之后不管按什么键都没用，   break:按任意键退出
     }
 
     //得到剩下的字符
@@ -591,10 +611,28 @@ static void data_init(void)
 }
 
 
+void ymodem(void){
+	char buf[1029] = {'0'};
+	unsigned int baudrate = 115200;
+	data_init();
+	psdram_address = (char *)sdram_address;
+ 	pl011_init(baudrate);
+
+	while(1)
+	{
+		packet_processing(buf);
+		if(end_receive == TRUE)
+		{
+			break;
+		}
+		packet_reception(buf);
+	}
+
+}
+
 static int do_ymodem(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
     char buf[1029] = {'0'};
-    int delay = 100;  //s
     unsigned int baudrate = 115200;
 	data_init();
 
