@@ -128,6 +128,8 @@ char * psdram_address = NULL;
      const char *s = str;
      unsigned long len;
      int c;
+	 if(str == NULL)
+	 	return -1;
 
      do {                //得到第一个字符，跳过空格
          c = *s++;
@@ -166,12 +168,13 @@ char * psdram_address = NULL;
  }
 
 
- static unsigned long str10_to_u32(const char* str)
+ static unsigned int str10_to_u32(const char* str)
  {
      const char *s = str;
      unsigned long len;
      int c;
-
+	 if(str == NULL)
+	 	return -1;
      do {                //得到第一个字符，跳过空格
          c = *s++;
      } while (c == ' ');
@@ -242,9 +245,8 @@ static void pl011_init(unsigned int baudRate)
 	 ** Finally, enable the UART
 	 */
 	*p_uart_pl011_cr = (UART_PL011_CR_UARTEN | UART_PL011_CR_TXE | UART_PL011_CR_RXE);
-	// printf("divider = %d\n", divider );
-	// printf("fraction = %d\n", fraction);
-
+	//  printf("divider = %d\n", divider );
+	//  printf("fraction = %d\n", fraction);
 }
 
 
@@ -594,15 +596,14 @@ static int do_ymodem(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
     char buf[1029] = {'0'};
     int delay = 100;  //s
     unsigned int baudrate = 115200;
+	data_init();
 
-    if(argv[1] != NULL)
-        sdram_address = (unsigned int)str16_to_u32(argv[1]);
+	if(argc > 1)
+		sdram_address = (unsigned int)str16_to_u32(argv[1]);
 	psdram_address = (char *)sdram_address;
 
-	if(argv[2] != NULL)
-        baudrate = (unsigned int)str10_to_u32(argv[2]);
-
-	data_init();
+	if(argc > 2)
+		baudrate = (unsigned int)str10_to_u32(argv[2]);
 	pl011_init(baudrate);
 
     printf ("## Ready for binary (ymodem) download "
